@@ -65,8 +65,10 @@ function writeIndex() {
     fs.writeFileSync(fileIndexPath, JSON.stringify(fileIndex))
 }
 
+const postsDir = path.join(C.data, 'rawPosts')
+
 let processedCount = 0
-for(const filename of fs.readdirSync(C.config.downloadedPostsPath)) {
+for(const filename of fs.readdirSync(postsDir)) {
     if(!filename.endsWith('.html')) continue
 
     const log = baseLog.withIds(filename)
@@ -75,7 +77,7 @@ for(const filename of fs.readdirSync(C.config.downloadedPostsPath)) {
     let values: any
     {
         const jsdom = new JSDOM(fs.readFileSync(
-            path.join(C.config.downloadedPostsPath, filename)
+            path.join(postsDir, filename)
         ).toString())
         const scriptCands = jsdom.window.document
             .querySelectorAll('script:not([defer]):not([src])')

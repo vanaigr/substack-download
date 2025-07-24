@@ -1,30 +1,28 @@
 import path from 'node:path'
 import fs from 'node:fs'
-import { Temporal as T } from 'temporal-polyfill'
 import fetch from 'node-fetch'
 
 import * as C from './conf.ts'
 import { makeConsoleAndFileLogger } from './log.ts'
 
-const base = path.join(
-    C.data,
-    'rawPosts',
-    '' + T.Now.zonedDateTimeISO().toString({ timeZoneName: 'never', offset: 'never' })
-)
+const base = path.join(C.data, 'rawPosts')
 fs.mkdirSync(base, { recursive: true })
 const baseLog = makeConsoleAndFileLogger(path.join(base, 'log.txt'))
-baseLog.i('Downloading to', base)
 
 const posts = JSON.parse(fs.readFileSync(
     path.join(C.data, 'postList', 'posts.json')
 ).toString('utf8')) as any[]
 
-const maxLength = (posts.length - 1).toString().length
-
 for(let i = 0; i < posts.length; i++) {
-    const postLog = baseLog.withIds('post ' + i)
-
     const post = posts[i]
+    const filePath = path.join(base, post.id + '.html')
+
+    const postLog = baseLog.withIds('post ' + post.id)
+    if(fs.existsSync(filePath)) {
+        postLog.i('Already exists. Skipping')
+        continue
+    }
+
     if(post.audience === 'only_paid') {
         postLog.w('Skipping since it is paid only')
         continue
@@ -49,10 +47,7 @@ for(let i = 0; i < posts.length; i++) {
                 throw new Error('Response status: ' + resp.status + '. Body: ' + body)
             }
             const text = await resp.text()
-            fs.writeFileSync(
-                path.join(base, i.toString().padStart(maxLength, '0') + '.html'),
-                text,
-            )
+            fs.writeFileSync(filePath, text)
 
             break
         }
