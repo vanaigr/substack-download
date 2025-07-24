@@ -4,7 +4,7 @@ sitemap.xml for post urls, otherwise feed.xml
 
 .../api/v1/archive?sort=new&search=&offset=0&limit=50
 
-.../api/v1/video/<video_upload_url>/src
+.../api/v1/video/upload/<video_upload_url>/src
 
 in HTML:
 <script>window._preloads

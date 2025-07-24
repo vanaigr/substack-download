@@ -13,6 +13,7 @@ const base = path.join(
 )
 fs.mkdirSync(base, { recursive: true })
 const baseLog = makeConsoleAndFileLogger(path.join(base, 'log.txt'))
+baseLog.i('Downloading to', base)
 
 const posts = JSON.parse(fs.readFileSync(
     path.join(C.data, 'postList', 'posts.json')
