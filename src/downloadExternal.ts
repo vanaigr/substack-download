@@ -169,11 +169,20 @@ for(const filename of fs.readdirSync(postsDir)) {
                     )
                 }
 
-                const videoBuffer = Buffer.from(await resp.arrayBuffer())
-
                 const filename = '' + fileIndex.filePathEnd + '.mp4'
-                fs.writeFileSync(path.join(base, filename), videoBuffer)
                 fileIndex.filePathEnd++
+                writeIndex()
+
+                const fileStream = fs.createWriteStream(
+                    path.join(base, filename),
+                    { flags: 'wx' },
+                )
+                await new Promise((s, j) => {
+                    resp.body!.pipe(fileStream)
+                    fileStream.on('finish', () => s(undefined))
+                    resp.body!.on('error', j)
+                })
+
                 fileIndex.videoPaths[videoUpload.id] = filename
                 writeIndex()
 
@@ -213,11 +222,20 @@ for(const filename of fs.readdirSync(postsDir)) {
                 )
             }
 
-            const imageBuffer = Buffer.from(await resp.arrayBuffer())
-
             const filename = '' + fileIndex.filePathEnd + srcProps.ext
-            fs.writeFileSync(path.join(base, filename), imageBuffer)
             fileIndex.filePathEnd++
+            writeIndex()
+
+            const fileStream = fs.createWriteStream(
+                path.join(base, filename),
+                { flags: 'wx' },
+            )
+            await new Promise((s, j) => {
+                resp.body!.pipe(fileStream)
+                fileStream.on('finish', () => s(undefined))
+                resp.body!.on('error', j)
+            })
+
             fileIndex.imagePaths[src] = filename
             writeIndex()
 
