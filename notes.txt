@@ -1,0 +1,12 @@
+https://github.com/timf34/Substack2Markdown
+
+sitemap.xml for post urls, otherwise feed.xml
+
+.../api/v1/archive?sort=new&search=&offset=0&limit=50
+
+.../api/v1/video/<video_upload_url>/src
+
+in HTML:
+<script>window._preloads
+
+We need node-fetch since regular fetch doesn't allow setting/querying cookies, or something like this. Don't remember

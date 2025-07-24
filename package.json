@@ -1,0 +1,13 @@
+{
+	"type": "module",
+	"dependencies": {
+		"@types/jsdom": "^21.1.7",
+		"jsdom": "^26.1.0",
+		"node-fetch": "^3.3.2",
+		"puppeteer": "^24.15.0",
+		"temporal-polyfill": "^0.3.0"
+	},
+	"devDependencies": {
+		"@types/node": "^24.1.0"
+	}
+}
