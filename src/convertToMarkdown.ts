@@ -88,9 +88,6 @@ try {
     }
 
     await Promise.all(promises)
-
-    fs.cpSync(externalDir, assetsBase, { recursive: true })
-    assetsIndex = JSON.parse(fs.readFileSync(path.join(assetsBase, 'index.json')).toString())
 }
 catch(err) {
     baseLog.e('While copying assets', err)
