@@ -2,8 +2,11 @@ import jsdomLib from 'jsdom'
 import path from 'node:path'
 import fs from 'node:fs'
 import fsp from 'node:fs/promises'
+import sharp from 'sharp'
+import { Temporal as T } from 'temporal-polyfill'
 
 import * as C from './conf.ts'
+import * as U from './util.ts'
 import { makeConsoleAndFileLogger, type Log } from './log.ts'
 import { process, join } from './toMd.ts'
 
@@ -32,12 +35,72 @@ let assetsIndex: AssetsIndex = {
 
 baseLog.i('Copying assets')
 try {
+    const rawAssetIndex = JSON.parse(fs.readFileSync(path.join(externalDir, 'index.json')).toString()) as AssetsIndex
+    fs.mkdirSync(assetsBase)
+
+    const promises: Promise<unknown>[] = []
+
+    for(const url in rawAssetIndex.imagePaths) {
+        let filename = rawAssetIndex.imagePaths[url]
+        const srcPath = path.join(externalDir, filename)
+
+        const log = baseLog.withIds('image ' + filename)
+        const p = (async() => {
+            try { await promises.at(-5) }
+            catch(_) {}
+
+            if(filename.endsWith('.webp')) {
+                filename = filename.substring(0, filename.length - 5) + '.png'
+
+                await sharp(srcPath)
+                    .png()
+                    .toFile(path.join(assetsBase, filename))
+            }
+            else {
+                await fsp.copyFile(srcPath, path.join(assetsBase, filename))
+            }
+
+            assetsIndex.imagePaths[url] = filename
+        })().catch(err => {
+            log.e(err)
+            throw err
+        })
+
+        promises.push(p)
+    }
+
+    for(const url in rawAssetIndex.videoPaths) {
+        let filename = rawAssetIndex.videoPaths[url]
+        const srcPath = path.join(externalDir, filename)
+
+        const log = baseLog.withIds('video ' + filename)
+        const p = (async() => {
+            try { await promises.at(-5) }
+            catch(_) {}
+            await fsp.copyFile(srcPath, path.join(assetsBase, filename))
+            assetsIndex.videoPaths[url] = filename
+        })().catch(err => {
+            log.e(err)
+            throw err
+        })
+
+        promises.push(p)
+    }
+
+    await Promise.all(promises)
+
     fs.cpSync(externalDir, assetsBase, { recursive: true })
     assetsIndex = JSON.parse(fs.readFileSync(path.join(assetsBase, 'index.json')).toString())
 }
 catch(err) {
     baseLog.e('While copying assets', err)
 }
+
+const existingPosts = new Set(
+    fs.readdirSync(rawPostsDir)
+        .filter(it => it.endsWith('.html'))
+        .map(it => parseInt(it.substring(0, it.length - 5)))
+)
 
 const postList = JSON.parse(fs.readFileSync(path.join(C.data, 'postList', 'posts.json')).toString())
 
@@ -47,7 +110,10 @@ for(const post of postList) {
 }
 
 for(const post of postList) {
-    const log = baseLog.withIds(post.id)
+    if(!existingPosts.has(post.id)) continue
+    if(post.id !== 102168145) continue
+
+    const log = baseLog.withIds('post ' + post.id)
     try {
         log.i('Processing')
 
@@ -76,24 +142,32 @@ for(const post of postList) {
             continue
         }
 
-        const html = values.feedData.initialPost.post.body_html
+        const { html, videoUpload } = U.getPostData(values)
+        if(!html) {
+            log.e('Could not find body_html of the post. Skipping')
+            continue
+        }
+
         const jsdom = new JSDOM(html)
+        fs.writeFileSync('a.html', html)
 
         let video = ''
-        const videoUpload = values.feedData.initialPost.post.videoUpload
         if(videoUpload) {
             const filename = assetsIndex.videoPaths[videoUpload.id]
             if(!filename) {
                 log.w('Missing video', videoUpload.id)
             }
             else {
-                video = '![](' + path.join(assetsBaseRelative, filename) + ')\n'
+                video = '![]('
+                    + path.join(assetsBaseRelative, encodeURIComponent(filename))
+                    + ')\n'
             }
         }
 
         let result = join([
             '# ' + post.title + '\n',
-            '## ' + post.subtitle + '\n',
+            ' ' + post.subtitle + '\n\n',
+            '\n\[Original](' + post.canonical_url + ')\n\n',
             video,
             process(log, jsdom.window.document, (url, log) => {
                 log = log.withIds('image url ' + url)
@@ -103,7 +177,7 @@ for(const post of postList) {
                         log.w('Missing')
                         return
                     }
-                    return path.join(assetsBaseRelative, filename)
+                    return path.join(assetsBaseRelative, encodeURIComponent(filename))
                 }
                 catch(err) {
                     log.e(err)
@@ -117,4 +191,32 @@ for(const post of postList) {
     catch(err) {
         log.e(err)
     }
+}
+
+try {
+    let content = ''
+    for(const post of postList) {
+        if(!existingPosts.has(post.id)) continue
+
+        const date = T.Instant.from(post.post_date).toLocaleString(undefined, {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+            timeZoneName: 'short',
+        })
+        content += '['
+            + post.title
+            + ' ('
+            + date
+            + ')](./'
+            + encodeURIComponent(idToName[post.id])
+            + '.md)\n\n'
+    }
+
+    fs.writeFileSync(path.join(base, 'index.md'), content)
+}
+catch(err) {
+    baseLog.e('While creating index file', err)
 }

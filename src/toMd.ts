@@ -33,6 +33,14 @@ function processNode(it: ChildNode, ctx: Ctx): string {
     if(name === '#text') {
         return (it.textContent ?? '').trim()
     }
+    else if(name === 'IFRAME') {
+        const src = it2.getAttribute('src')
+        if(!src) {
+            log.w('No source. Skipping')
+            return ''
+        }
+        return '\n\n[' + src + '](' + src + ')\n\n'
+    }
     else if(name === 'P') {
         return join(['\n\n', processChildren(it.childNodes, c), '\n\n'])
     }
@@ -115,14 +123,27 @@ function processNode(it: ChildNode, ctx: Ctx): string {
     else {
         let result: string | undefined
 
-        if(!result) result = (() => {
+        if(result == null) result = (() => {
             if(name !== 'A') return
-            if([...it2.classList.values()].includes('image-link')) {
+            const classes = [...it2.classList.values()]
+            if(classes.includes('image-link')) {
                 return processChildren(it.childNodes, c)
+            }
+            else if(classes.includes('button') && classes.includes('primary')) {
+                // Subscribe button
+                return ''
+            }
+            else {
+                const src = it2.getAttribute('href')
+                if(!src) {
+                    log.w('No href. Skipping')
+                    return ''
+                }
+                return '[' + (it.textContent ?? '') + '](' + src + ')'
             }
         })()
 
-        if(!result) result = (() => {
+        if(result == null) result = (() => {
             if(name !== 'DIV') return
             const attrs = JSON.parse(it2.getAttribute('data-attrs')!)
             if(!attrs) return
@@ -140,16 +161,26 @@ function processNode(it: ChildNode, ctx: Ctx): string {
             return join(['\n\n', ...res, '\n\n'])
         })()
 
-        if(!result) result = (() => {
+        if(result == null) result = (() => {
             if(name !== 'DIV') return
 
             return join(['\n\n', processChildren(it.childNodes, c), '\n\n'])
         })()
 
-        if(result) return result
+        if(result == null) result = (() => {
+            if(name !== 'FORM') return
 
-        log.w('Unknown node', name)
-        return (it.textContent ?? '').trim()
+            if([...it2.classList.values()].includes('subscription-widget-subscribe')) {
+                return ''
+            }
+        })()
+
+        if(result == null) {
+            log.w('Unknown node', name)
+            result = (it.textContent ?? '').trim()
+        }
+
+        return result
     }
 }
 

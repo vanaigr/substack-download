@@ -5,6 +5,7 @@
 		"jsdom": "^26.1.0",
 		"node-fetch": "^3.3.2",
 		"puppeteer": "^24.15.0",
+		"sharp": "^0.34.3",
 		"temporal-polyfill": "^0.3.0"
 	},
 	"devDependencies": {

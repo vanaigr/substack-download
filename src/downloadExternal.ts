@@ -5,6 +5,7 @@ import fsp from 'node:fs/promises'
 import fetch from 'node-fetch'
 
 import * as C from './conf.ts'
+import * as U from './util.ts'
 import { makeConsoleAndFileLogger, type Log } from './log.ts'
 
 const JSDOM = jsdomLib.JSDOM
@@ -100,10 +101,14 @@ for(const filename of fs.readdirSync(postsDir)) {
     }
     //fs.writeFileSync(C.root + '/file.json', JSON.stringify(values, null, 2))
 
-    const html = values.feedData.initialPost.post.body_html
-    const jsdom = new JSDOM(html)
+    const { html, videoUpload } = U.getPostData(values)
 
-    const videoUpload = values.feedData.initialPost.post.videoUpload
+    if(!html) {
+        log.e('Could not find body_html of the post. Skipping')
+        continue
+    }
+
+    const jsdom = new JSDOM(html)
 
     const images = jsdom.window.document.querySelectorAll('img')
 
