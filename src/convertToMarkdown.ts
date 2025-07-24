@@ -46,7 +46,7 @@ try {
 
         const log = baseLog.withIds('image ' + filename)
         const p = (async() => {
-            try { await promises.at(-5) }
+            try { await promises.at(-20) }
             catch(_) {}
 
             if(filename.endsWith('.webp')) {
@@ -75,7 +75,7 @@ try {
 
         const log = baseLog.withIds('video ' + filename)
         const p = (async() => {
-            try { await promises.at(-5) }
+            try { await promises.at(-20) }
             catch(_) {}
             await fsp.copyFile(srcPath, path.join(assetsBase, filename))
             assetsIndex.videoPaths[url] = filename
@@ -108,7 +108,6 @@ for(const post of postList) {
 
 for(const post of postList) {
     if(!existingPosts.has(post.id)) continue
-    if(post.id !== 102168145) continue
 
     const log = baseLog.withIds('post ' + post.id)
     try {

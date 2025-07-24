@@ -9,7 +9,7 @@ export type Ctx = {
 export function process(
     log: Log,
     document: Document,
-    imageUrlToPath: Ctx['imageUrlToPath']
+    imageUrlToPath: Ctx['imageUrlToPath'],
 ) {
     return join(
         [...document.body.childNodes].map(it => {
@@ -64,6 +64,9 @@ function processNode(it: ChildNode, ctx: Ctx): string {
             + it.textContent
             + '\n'
     }
+    else if(name === 'FIGCAPTION') {
+        return join(['\n', processChildren(it.childNodes, c).trim(), '\n\n'])
+    }
     else if(name === 'STRONG') {
         return '**' + processChildren(it.childNodes, c) + '**'
     }
@@ -98,15 +101,17 @@ function processNode(it: ChildNode, ctx: Ctx): string {
         return join(['\n\n', processChildrenInList(it.childNodes, c, false), '\n\n'])
     }
     else if(name === 'PICTURE') {
-        return join(['\n\n', processChildren(it.childNodes, c), '\n\n'])
+        return join(['\n', processChildren(it.childNodes, c), '\n'])
     }
     else if(name === 'FIGURE') {
-        return join(['\n\n', processChildren(it.childNodes, c), '\n\n'])
+        return join(['\n', processChildren(it.childNodes, c), '\n'])
     }
     else if(name === 'BLOCKQUOTE') {
         return join([
             '\n\n',
-            ...processChildren(it.childNodes, c).split('\n')
+            ...processChildren(it.childNodes, c)
+                .trim()
+                .split('\n')
                 .map(it => '> ' + it + '\n'),
             '\n\n',
         ])
@@ -133,6 +138,28 @@ function processNode(it: ChildNode, ctx: Ctx): string {
                 // Subscribe button
                 return ''
             }
+            else if(it2.id.startsWith('footnote-anchor-')) {
+                let label = it2.id.substring('footnote-anchor-'.length)
+                let endI = label.indexOf('-')
+                if(endI === -1) endI = label.length
+                label = label.substring(0, endI)
+                if(!label) {
+                    log.w('Empty footnote label for id', it2.id)
+                    return ''
+                }
+                return '[^' + label + ']'
+            }
+            else if(it2.id.startsWith('footnote-')) {
+                let label = it2.id.substring('footnote-'.length)
+                let endI = label.indexOf('-')
+                if(endI === -1) endI = label.length
+                label = label.substring(0, endI)
+                if(!label) {
+                    log.w('Empty footnote for id', it2.id)
+                    return ''
+                }
+                return '\n[^' + label + ']:'
+            }
             else {
                 const src = it2.getAttribute('href')
                 if(!src) {
@@ -158,13 +185,26 @@ function processNode(it: ChildNode, ctx: Ctx): string {
                 }
                 res.push('![](' + path + ')\n')
             }
-            return join(['\n\n', ...res, '\n\n'])
+            return join(['\n', ...res, '\n'])
         })()
 
         if(result == null) result = (() => {
             if(name !== 'DIV') return
 
-            return join(['\n\n', processChildren(it.childNodes, c), '\n\n'])
+            const classes = [...it2.classList.values()]
+
+            if(
+                classes.includes('subscription-widget-wrap')
+                    || classes.includes('subscription-widget-wrap-editor')
+            ) {
+                return ''
+            }
+
+            if(classes.includes('footnote-content')) {
+                return join([processChildren(it.childNodes, c).trim(), '\n'])
+            }
+
+            return join(['\n', processChildren(it.childNodes, c), '\n'])
         })()
 
         if(result == null) result = (() => {
