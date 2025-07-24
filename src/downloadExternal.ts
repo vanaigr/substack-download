@@ -84,7 +84,6 @@ for(const filename of fs.readdirSync(postsDir)) {
 
         const contentRegexp = /window\._preloads\s*=\s*JSON\.parse\(['"](.*)['"]\);?$/
 
-
         for(const cand of scriptCands) {
             let content = cand.textContent
             if(!content) continue
@@ -92,10 +91,11 @@ for(const filename of fs.readdirSync(postsDir)) {
             const match = content.match(contentRegexp)
             if(!match) continue
             values = JSON.parse(JSON.parse('"' + match[1] + '"'))
+            break
         }
     }
     if(!values) {
-        log.w('Could not find values. Skipping')
+        log.w('Could not find post html. Skipping')
         continue
     }
     //fs.writeFileSync(C.root + '/file.json', JSON.stringify(values, null, 2))
@@ -174,14 +174,15 @@ for(const filename of fs.readdirSync(postsDir)) {
                     )
                 }
 
+                const videoBuffer = Buffer.from(await resp.arrayBuffer())
+
                 const filename = '' + fileIndex.filePathEnd + '.mp4'
-                fs.writeFileSync(
-                    path.join(base, filename),
-                    Buffer.from(await resp.arrayBuffer())
-                )
+                fs.writeFileSync(path.join(base, filename), videoBuffer)
                 fileIndex.filePathEnd++
                 fileIndex.videoPaths[videoUpload.id] = filename
                 writeIndex()
+
+                videoLog.i('Done')
             }
             catch(err) {
                 videoLog.e(err)
@@ -217,11 +218,10 @@ for(const filename of fs.readdirSync(postsDir)) {
                 )
             }
 
+            const imageBuffer = Buffer.from(await resp.arrayBuffer())
+
             const filename = '' + fileIndex.filePathEnd + srcProps.ext
-            fs.writeFileSync(
-                path.join(base, filename),
-                Buffer.from(await resp.arrayBuffer())
-            )
+            fs.writeFileSync(path.join(base, filename), imageBuffer)
             fileIndex.filePathEnd++
             fileIndex.imagePaths[src] = filename
             writeIndex()
