@@ -10,7 +10,6 @@ import { makeConsoleAndFileLogger, type Log } from './log.ts'
 const JSDOM = jsdomLib.JSDOM
 
 const base = path.join(C.data, 'externalFiles')
-fs.rmSync(base, { recursive: true, force: true })
 fs.mkdirSync(base, { recursive: true })
 const baseLog = makeConsoleAndFileLogger(path.join(base, 'log.txt'))
 
@@ -24,6 +23,46 @@ try {
 }
 catch(err) {
     baseLog.w('Could not parse cookies. Videos will fail to load', err)
+}
+
+type Index = {
+    videoPaths: Record<string, string>
+    imagePaths: Record<string, string>
+    filePathEnd: number
+}
+
+const fileIndexPath = path.join(base, 'index.json')
+
+let fileIndex = ((): Index | undefined => {
+    let fileIndexBuf: Buffer | undefined
+    try {
+        fileIndexBuf = fs.readFileSync(fileIndexPath)
+    }
+    catch(_) {
+        return
+    }
+
+    try {
+        const fileIndexStr = fileIndexBuf.toString()
+        if(fileIndexStr === '') {
+            throw new Error('File is empty')
+        }
+        return JSON.parse(fileIndexStr) as Index
+    }
+    catch(err) {
+        baseLog.e('While reading current file index', err, 'Starting from scratch')
+    }
+})()
+if(fileIndex == null) {
+    fileIndex = {
+        videoPaths: {},
+        imagePaths: {},
+        filePathEnd: 1,
+    }
+}
+
+function writeIndex() {
+    fs.writeFileSync(fileIndexPath, JSON.stringify(fileIndex))
 }
 
 let processedCount = 0
@@ -59,64 +98,14 @@ for(const filename of fs.readdirSync(C.config.downloadedPostsPath)) {
     }
     //fs.writeFileSync(C.root + '/file.json', JSON.stringify(values, null, 2))
 
-    const postDir = path.join(base, filename.substring(0, filename.length - 5))
-    fs.mkdirSync(postDir)
-
-    let filenamesEnd = 1
-    const externalSources: Record<string, string> = {}
-    let videoPath: string | undefined
-
     const html = values.feedData.initialPost.post.body_html
     const jsdom = new JSDOM(html)
 
     const videoUpload = values.feedData.initialPost.post.videoUpload
-    if(videoUpload) {
-        const videoLog = log.withIds('video')
-        try {
-            videoLog.i('Found video upload. Fetching')
-
-            const videoUrl = new URL(
-                'api/v1/video/upload/' + encodeURIComponent(videoUpload.id) + '/src',
-                C.config.substackBaseUrl,
-            )
-
-            log.i('Fetching from', videoUrl.toString())
-            const resp = await fetch(videoUrl, {
-                headers: {
-                    ...(cookies ? { cookie: cookies } : {}),
-                },
-            })
-            if(!resp.ok) {
-                const body = await resp.text().then(
-                    it => 'Body:' + it,
-                    it => 'Body error:' + it
-                )
-                throw new Error(
-                    'Response status: ' + resp.status + '. Body: ' + body
-                )
-            }
-            const filename = '' + (filenamesEnd++) + '.mp4'
-            await fsp.writeFile(
-                path.join(postDir, filename),
-                Buffer.from(await resp.arrayBuffer())
-            )
-            videoPath = filename
-            /*const videoTag = jsdom.window.document.createElement('video')
-            videoTag.setAttribute('controls', '')
-            const source = jsdom.window.document.createElement('source')
-            source.setAttribute('src', './' + filename)
-            source.classList.add('main-video')
-            videoTag.append(source)
-            jsdom.window.document.body.prepend(videoTag)*/
-        }
-        catch(err) {
-            videoLog.e(err)
-        }
-    }
 
     const images = jsdom.window.document.querySelectorAll('img')
 
-    const imageSrcs = new Map<string, string>()
+    const imageSrcs = new Map<string, { ext: string }>()
     for(const it of images) {
         const src = it.getAttribute('src')
         if(src) {
@@ -125,10 +114,7 @@ for(const filename of fs.readdirSync(C.config.downloadedPostsPath)) {
             if(extensionI !== -1) {
                 extension = src.substring(extensionI)
             }
-
-            const filename = '' + (filenamesEnd++) + extension
-            externalSources[src] = filename
-            imageSrcs.set(src, filename)
+            imageSrcs.set(src, { ext: extension })
         }
     }
 
@@ -145,23 +131,37 @@ for(const filename of fs.readdirSync(C.config.downloadedPostsPath)) {
                 extension = src.substring(extensionI)
             }
 
-            const filename = '' + (filenamesEnd++) + extension
-            externalSources[src] = filename
-            imageSrcs.set(src, filename)
+            imageSrcs.set(src, { ext: extension })
         }
     }
 
     log.i('Fetching', imageSrcs.size, 'images')
     const promises: Promise<unknown>[] = []
-    for(const [src, filename] of imageSrcs) {
-        const imgLog = log.withIds('image ' + src)
+    if(videoUpload) {
+        const videoLog = log.withIds('video')
 
-        promises.push(
-            (async() => {
-                try { await promises.at(-5) }
-                catch(err) {  }
+        const p = (async() => {
+            videoLog.i('Found video upload')
+            if(fileIndex.videoPaths[videoUpload.id]) {
+                videoLog.i('Already exists. Skipping')
+                return
+            }
 
-                const resp = await fetch(src)
+            try { await promises.at(-5) }
+            catch(err) {}
+
+            try {
+                const videoUrl = new URL(
+                    'api/v1/video/upload/' + encodeURIComponent(videoUpload.id) + '/src',
+                    C.config.substackBaseUrl,
+                )
+
+                log.i('Fetching from', videoUrl.toString())
+                const resp = await fetch(videoUrl, {
+                    headers: {
+                        ...(cookies ? { cookie: cookies } : {}),
+                    },
+                })
                 if(!resp.ok) {
                     const body = await resp.text().then(
                         it => 'Body:' + it,
@@ -172,26 +172,77 @@ for(const filename of fs.readdirSync(C.config.downloadedPostsPath)) {
                     )
                 }
 
-                await fsp.writeFile(
-                    path.join(postDir, filename),
+                const filename = '' + fileIndex.filePathEnd + '.mp4'
+                fs.writeFileSync(
+                    path.join(base, filename),
                     Buffer.from(await resp.arrayBuffer())
                 )
+                fileIndex.filePathEnd++
+                fileIndex.videoPaths[videoUpload.id] = filename
+                writeIndex()
+            }
+            catch(err) {
+                videoLog.e(err)
+            }
+        })().catch(err => {
+            videoLog.e(err)
+            throw err
+        })
 
-                imgLog.i('Done')
-            })()
-                .catch(err => {
-                    imgLog.e(err)
-                    throw err
-                })
-        )
+        promises.push(p)
+    }
+
+    for(const [src, srcProps] of imageSrcs) {
+        const imgLog = log.withIds('image ' + src)
+
+        const p = (async() => {
+            if(fileIndex.imagePaths[src]) {
+                imgLog.i('Already exists. Skipping')
+                return
+            }
+
+            try { await promises.at(-5) }
+            catch(err) {}
+
+            const resp = await fetch(src)
+            if(!resp.ok) {
+                const body = await resp.text().then(
+                    it => 'Body:' + it,
+                    it => 'Body error:' + it
+                )
+                throw new Error(
+                    'Response status: ' + resp.status + '. Body: ' + body
+                )
+            }
+
+            const filename = '' + fileIndex.filePathEnd + srcProps.ext
+            fs.writeFileSync(
+                path.join(base, filename),
+                Buffer.from(await resp.arrayBuffer())
+            )
+            fileIndex.filePathEnd++
+            fileIndex.imagePaths[src] = filename
+            writeIndex()
+
+            imgLog.i('Done')
+        })().catch(err => {
+            imgLog.e(err)
+            throw err
+        })
+
+        promises.push(p)
     }
 
     await Promise.all(promises)
 
-    //fs.writeFileSync(path.join(postDir, 'index.html'), jsdom.serialize())
     log.i('Done')
     processedCount++
-    break
 }
 
 baseLog.i('Done. Downloaded external files for', processedCount, 'posts')
+baseLog.i(
+    'Total videos:',
+    Object.keys(fileIndex.videoPaths).length,
+    'Total images:',
+    Object.keys(fileIndex.imagePaths).length,
+)
