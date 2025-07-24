@@ -79,14 +79,30 @@ for(const post of postList) {
         const html = values.feedData.initialPost.post.body_html
         const jsdom = new JSDOM(html)
 
+        let video = ''
+        const videoUpload = values.feedData.initialPost.post.videoUpload
+        if(videoUpload) {
+            const filename = assetsIndex.videoPaths[videoUpload.id]
+            if(!filename) {
+                log.w('Missing video', videoUpload.id)
+            }
+            else {
+                video = '![](' + path.join(assetsBaseRelative, filename) + ')\n'
+            }
+        }
+
         let result = join([
             '# ' + post.title + '\n',
             '## ' + post.subtitle + '\n',
+            video,
             process(log, jsdom.window.document, (url, log) => {
                 log = log.withIds('image url ' + url)
                 try {
                     const filename = assetsIndex.imagePaths[url]
-                    if(!filename) return
+                    if(!filename) {
+                        log.w('Missing')
+                        return
+                    }
                     return path.join(assetsBaseRelative, filename)
                 }
                 catch(err) {
