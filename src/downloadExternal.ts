@@ -14,17 +14,7 @@ const base = path.join(C.data, 'externalFiles')
 fs.mkdirSync(base, { recursive: true })
 const baseLog = makeConsoleAndFileLogger(path.join(base, 'log.txt'))
 
-
-let cookies: string | undefined
-try {
-    const contentStr = fs.readFileSync(path.join(C.data, 'setupCookie', 'rawCookies.json')).toString()
-    if(!contentStr) throw new Error('File is empty')
-    const content = JSON.parse(contentStr) as any[]
-    cookies = content.map(it => it.name + '=' + it.value).join('; ')
-}
-catch(err) {
-    baseLog.w('Could not parse cookies. Videos will fail to load', err)
-}
+const cookies = U.makeCookie(baseLog)
 
 type Index = {
     videoPaths: Record<string, string>

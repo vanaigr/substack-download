@@ -3,11 +3,14 @@ import fs from 'node:fs'
 import fetch from 'node-fetch'
 
 import * as C from './conf.ts'
+import * as U from './util.ts'
 import { makeConsoleAndFileLogger } from './log.ts'
 
 const base = path.join(C.data, 'rawPosts')
 fs.mkdirSync(base, { recursive: true })
 const baseLog = makeConsoleAndFileLogger(path.join(base, 'log.txt'))
+
+const cookie = U.makeCookie(baseLog)
 
 const posts = JSON.parse(fs.readFileSync(
     path.join(C.data, 'postList', 'posts.json')
@@ -26,8 +29,9 @@ for(let i = 0; i < posts.length; i++) {
     }
 
     if(post.audience === 'only_paid') {
-        postLog.w('Skipping since it is paid only')
-        continue
+        postLog.w('Post is subscriber-only')
+        //postLog.w('Skipping since it is paid only')
+        //continue
     }
 
     let retries = 0
@@ -40,7 +44,9 @@ for(let i = 0; i < posts.length; i++) {
 
         try {
             log.i('Fetching from', post.canonical_url)
-            const resp = await fetch(post.canonical_url)
+            const resp = await fetch(post.canonical_url, {
+                headers: { ...(cookie ? { cookie } : {}) },
+            })
             if(!resp.ok) {
                 const body = await resp.text().then(
                     it => 'body:' + it,
@@ -73,5 +79,6 @@ for(let i = 0; i < posts.length; i++) {
         }
     }
 
+    postLog.i('Done. Waiting to avoid rate-limit')
     await new Promise(s => setTimeout(s, 2000))
 }
