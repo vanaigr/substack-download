@@ -125,16 +125,31 @@ for(const filename of fs.readdirSync(C.config.downloadedPostsPath)) {
             if(extensionI !== -1) {
                 extension = src.substring(extensionI)
             }
+
             const filename = '' + (filenamesEnd++) + extension
             externalSources[src] = filename
             imageSrcs.set(src, filename)
         }
     }
 
-    /*const galleries = jsdom.window.document.querySelectorAll('div[data-attrs]')
+    const galleries = jsdom.window.document.querySelectorAll('div[data-attrs]')
     for(const it of galleries) {
         const attrs = JSON.parse(it.getAttribute('data-attrs')!)
-    }*/
+        if(!attrs.gallery) continue
+        for(const image of attrs.gallery.images) {
+            const src = image.src
+
+            let extension = '.png'
+            let extensionI = src.lastIndexOf('.')
+            if(extensionI !== -1) {
+                extension = src.substring(extensionI)
+            }
+
+            const filename = '' + (filenamesEnd++) + extension
+            externalSources[src] = filename
+            imageSrcs.set(src, filename)
+        }
+    }
 
     log.i('Fetching', imageSrcs.size, 'images')
     const promises: Promise<unknown>[] = []
