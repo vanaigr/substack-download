@@ -101,9 +101,19 @@ const existingPosts = new Set(
 
 const postList = JSON.parse(fs.readFileSync(path.join(C.data, 'postList', 'posts.json')).toString())
 
+const nameCounts = new Map<string, number>()
+for(const post of postList) {
+    let count = nameCounts.get(post.title) ?? 0
+    nameCounts.set(post.title, count + 1)
+}
+
 const idToName: Record<string, string> = {}
 for(const post of postList) {
-    idToName[post.id] = post.title + '-' + post.id
+    let name = post.title
+    if(nameCounts.get(name)! > 1) {
+        name = name + '-' + post.id
+    }
+    idToName[post.id] = name
 }
 
 for(const post of postList) {
@@ -161,8 +171,7 @@ for(const post of postList) {
         }
 
         let result = join([
-            '# ' + post.title + '\n',
-            ' ' + post.subtitle + '\n\n',
+            post.subtitle + '\n\n',
             '\n\[Original](' + post.canonical_url + ')\n\n',
             video,
             process(log, jsdom.window.document, (url, log) => {
