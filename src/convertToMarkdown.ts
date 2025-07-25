@@ -102,7 +102,7 @@ else {
             promises.push(p)
         }
 
-        await Promise.all(promises)
+        await Promise.allSettled(promises)
     }
     catch(err) {
         baseLog.e('While copying assets', err)

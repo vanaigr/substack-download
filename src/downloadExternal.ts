@@ -236,7 +236,7 @@ for(let i = 0; i < filenames.length; i++) {
         promises.push(p)
     }
 
-    await Promise.all(promises)
+    await Promise.allSettled(promises)
 
     log.i('Done')
     processedCount++
