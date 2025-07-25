@@ -61,11 +61,14 @@ const postsDir = path.join(C.data, 'rawPosts')
 let processedCount = 0
 let downloaded = 0
 let errors = 0
-for(const filename of fs.readdirSync(postsDir)) {
+
+const filenames = fs.readdirSync(postsDir)
+for(let i = 0; i < filenames.length; i++) {
+    const filename = filenames[i]
     if(!filename.endsWith('.html')) continue
 
     const log = baseLog.withIds(filename)
-    log.i('Processing')
+    log.i('Processing', 1 + i, 'of', filenames.length)
 
     let values: any
     {
