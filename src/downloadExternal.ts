@@ -59,6 +59,8 @@ function writeIndex() {
 const postsDir = path.join(C.data, 'rawPosts')
 
 let processedCount = 0
+let downloaded = 0
+let errors = 0
 for(const filename of fs.readdirSync(postsDir)) {
     if(!filename.endsWith('.html')) continue
 
@@ -147,52 +149,49 @@ for(const filename of fs.readdirSync(postsDir)) {
             try { await promises.at(-5) }
             catch(err) {}
 
-            try {
-                const videoUrl = new URL(
-                    'api/v1/video/upload/' + encodeURIComponent(videoUpload.id) + '/src',
-                    C.config.substackBaseUrl,
+            const videoUrl = new URL(
+                'api/v1/video/upload/' + encodeURIComponent(videoUpload.id) + '/src',
+                C.config.substackBaseUrl,
+            )
+
+            log.i('Fetching from', videoUrl.toString())
+            const resp = await fetch(videoUrl, {
+                headers: {
+                    ...(cookies ? { cookie: cookies } : {}),
+                },
+            })
+            if(!resp.ok) {
+                const body = await resp.text().then(
+                    it => 'Body:' + it,
+                    it => 'Body error:' + it
                 )
-
-                log.i('Fetching from', videoUrl.toString())
-                const resp = await fetch(videoUrl, {
-                    headers: {
-                        ...(cookies ? { cookie: cookies } : {}),
-                    },
-                })
-                if(!resp.ok) {
-                    const body = await resp.text().then(
-                        it => 'Body:' + it,
-                        it => 'Body error:' + it
-                    )
-                    throw new Error(
-                        'Response status: ' + resp.status + '. Body: ' + body
-                    )
-                }
-
-                const filename = '' + fileIndex.filePathEnd + '.mp4'
-                fileIndex.filePathEnd++
-                writeIndex()
-
-                const fileStream = fs.createWriteStream(
-                    path.join(base, filename),
-                    { flags: 'wx' },
+                throw new Error(
+                    'Response status: ' + resp.status + '. Body: ' + body
                 )
-                await new Promise((s, j) => {
-                    resp.body!.pipe(fileStream)
-                    fileStream.on('finish', () => s(undefined))
-                    resp.body!.on('error', j)
-                })
-
-                fileIndex.videoPaths[videoUpload.id] = filename
-                writeIndex()
-
-                videoLog.i('Done')
             }
-            catch(err) {
-                videoLog.e(err)
-            }
+
+            const filename = '' + fileIndex.filePathEnd + '.mp4'
+            fileIndex.filePathEnd++
+            writeIndex()
+
+            const fileStream = fs.createWriteStream(
+                path.join(base, filename),
+                { flags: 'wx' },
+            )
+            await new Promise((s, j) => {
+                resp.body!.pipe(fileStream)
+                fileStream.on('finish', () => s(undefined))
+                resp.body!.on('error', j)
+            })
+
+            fileIndex.videoPaths[videoUpload.id] = filename
+            writeIndex()
+            downloaded++
+
+            videoLog.i('Done')
         })().catch(err => {
             videoLog.e(err)
+            errors++
             throw err
         })
 
@@ -238,10 +237,12 @@ for(const filename of fs.readdirSync(postsDir)) {
 
             fileIndex.imagePaths[src] = filename
             writeIndex()
+            downloaded++
 
             imgLog.i('Done')
         })().catch(err => {
             imgLog.e(err)
+            errors++
             throw err
         })
 
@@ -261,3 +262,4 @@ baseLog.i(
     'Total images:',
     Object.keys(fileIndex.imagePaths).length,
 )
+baseLog.i('Files downloaded:', downloaded, 'Errors:', errors)
