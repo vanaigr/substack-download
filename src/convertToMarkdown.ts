@@ -20,8 +20,8 @@ const baseLog = makeConsoleAndFileLogger(path.join(base, 'log.txt'))
 const rawPostsDir = path.join(C.data, 'rawPosts')
 const externalDir = path.join(C.data, 'externalFiles')
 
-const assetsBaseRelative = 'assets'
-const assetsBase = path.join(base, assetsBaseRelative)
+const assetsBase = path.join(base, 'assets')
+let assetsBaseRelative: string
 
 type AssetsIndex = {
     videoPaths: Record<string, string>
@@ -33,64 +33,80 @@ let assetsIndex: AssetsIndex = {
     imagePaths: {},
 }
 
-baseLog.i('Copying assets')
-try {
-    const rawAssetIndex = JSON.parse(fs.readFileSync(path.join(externalDir, 'index.json')).toString()) as AssetsIndex
-    fs.mkdirSync(assetsBase)
+let copyFiles = false
+if(!copyFiles) {
+    assetsBaseRelative = path.join('..', 'externalFiles')
 
-    const promises: Promise<unknown>[] = []
+    baseLog.w('Using ../externalFiles/ as asset directory to not copy files')
 
-    for(const url in rawAssetIndex.imagePaths) {
-        let filename = rawAssetIndex.imagePaths[url]
-        const srcPath = path.join(externalDir, filename)
-
-        const log = baseLog.withIds('image ' + filename)
-        const p = (async() => {
-            try { await promises.at(-20) }
-            catch(_) {}
-
-            if(filename.endsWith('.webp')) {
-                filename = filename.substring(0, filename.length - 5) + '.png'
-
-                await sharp(srcPath)
-                    .png()
-                    .toFile(path.join(assetsBase, filename))
-            }
-            else {
-                await fsp.copyFile(srcPath, path.join(assetsBase, filename))
-            }
-
-            assetsIndex.imagePaths[url] = filename
-        })().catch(err => {
-            log.e(err)
-            throw err
-        })
-
-        promises.push(p)
+    try {
+        assetsIndex = JSON.parse(fs.readFileSync(path.join(externalDir, 'index.json')).toString()) as AssetsIndex
     }
-
-    for(const url in rawAssetIndex.videoPaths) {
-        let filename = rawAssetIndex.videoPaths[url]
-        const srcPath = path.join(externalDir, filename)
-
-        const log = baseLog.withIds('video ' + filename)
-        const p = (async() => {
-            try { await promises.at(-20) }
-            catch(_) {}
-            await fsp.copyFile(srcPath, path.join(assetsBase, filename))
-            assetsIndex.videoPaths[url] = filename
-        })().catch(err => {
-            log.e(err)
-            throw err
-        })
-
-        promises.push(p)
+    catch(err) {
+        baseLog.e('While creating asset index', err)
     }
-
-    await Promise.all(promises)
 }
-catch(err) {
-    baseLog.e('While copying assets', err)
+else {
+    assetsBaseRelative = './assets'
+    baseLog.i('Copying assets')
+    try {
+        const rawAssetIndex = JSON.parse(fs.readFileSync(path.join(externalDir, 'index.json')).toString()) as AssetsIndex
+        fs.mkdirSync(assetsBase)
+
+        const promises: Promise<unknown>[] = []
+
+        for(const url in rawAssetIndex.imagePaths) {
+            let filename = rawAssetIndex.imagePaths[url]
+            const srcPath = path.join(externalDir, filename)
+
+            const log = baseLog.withIds('image ' + filename)
+            const p = (async() => {
+                try { await promises.at(-20) }
+                catch(_) {}
+
+                if(filename.endsWith('.webp')) {
+                    filename = filename.substring(0, filename.length - 5) + '.png'
+
+                    await sharp(srcPath)
+                        .png()
+                        .toFile(path.join(assetsBase, filename))
+                }
+                else {
+                    await fsp.copyFile(srcPath, path.join(assetsBase, filename))
+                }
+
+                assetsIndex.imagePaths[url] = filename
+            })().catch(err => {
+                log.e(err)
+                throw err
+            })
+
+            promises.push(p)
+        }
+
+        for(const url in rawAssetIndex.videoPaths) {
+            let filename = rawAssetIndex.videoPaths[url]
+            const srcPath = path.join(externalDir, filename)
+
+            const log = baseLog.withIds('video ' + filename)
+            const p = (async() => {
+                try { await promises.at(-20) }
+                catch(_) {}
+                await fsp.copyFile(srcPath, path.join(assetsBase, filename))
+                assetsIndex.videoPaths[url] = filename
+            })().catch(err => {
+                log.e(err)
+                throw err
+            })
+
+            promises.push(p)
+        }
+
+        await Promise.all(promises)
+    }
+    catch(err) {
+        baseLog.e('While copying assets', err)
+    }
 }
 
 const existingPosts = new Set(
