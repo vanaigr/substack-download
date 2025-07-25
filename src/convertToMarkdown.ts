@@ -123,26 +123,10 @@ for(const post of postList) {
     try {
         log.i('Processing')
 
-        let values: any
-        {
-            const rawPostPath = path.join(rawPostsDir, post.id + '.html')
-
-            const jsdom = new JSDOM(fs.readFileSync(rawPostPath).toString())
-            const scriptCands = jsdom.window.document
-                .querySelectorAll('script:not([defer]):not([src])')
-
-            const contentRegexp = /window\._preloads\s*=\s*JSON\.parse\(['"](.*)['"]\);?$/
-
-            for(const cand of scriptCands) {
-                let content = cand.textContent
-                if(!content) continue
-                content = content.trim()
-                const match = content.match(contentRegexp)
-                if(!match) continue
-                values = JSON.parse(JSON.parse('"' + match[1] + '"'))
-                break
-            }
-        }
+        const values = U.extractValues(
+            fs.readFileSync(path.join(rawPostsDir, post.id + '.html')).toString(),
+            log,
+        )
         if(!values) {
             log.w('Could not find post html. Skipping')
             continue

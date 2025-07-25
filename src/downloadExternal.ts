@@ -70,26 +70,10 @@ for(let i = 0; i < filenames.length; i++) {
     const log = baseLog.withIds(filename)
     log.i('Processing', 1 + i, 'of', filenames.length)
 
-    let values: any
-    {
-        const jsdom = new JSDOM(fs.readFileSync(
-            path.join(postsDir, filename)
-        ).toString())
-        const scriptCands = jsdom.window.document
-            .querySelectorAll('script:not([defer]):not([src])')
-
-        const contentRegexp = /window\._preloads\s*=\s*JSON\.parse\(['"](.*)['"]\);?$/
-
-        for(const cand of scriptCands) {
-            let content = cand.textContent
-            if(!content) continue
-            content = content.trim()
-            const match = content.match(contentRegexp)
-            if(!match) continue
-            values = JSON.parse(JSON.parse('"' + match[1] + '"'))
-            break
-        }
-    }
+    const values = U.extractValues(
+        fs.readFileSync(path.join(postsDir, filename)).toString(),
+        log,
+    )
     if(!values) {
         log.w('Could not find post html. Skipping')
         continue
