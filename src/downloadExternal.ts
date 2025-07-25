@@ -53,7 +53,7 @@ if(fileIndex == null) {
 }
 
 function writeIndex() {
-    fs.writeFileSync(fileIndexPath, JSON.stringify(fileIndex))
+    fs.writeFileSync(fileIndexPath, JSON.stringify(fileIndex, undefined, 2))
 }
 
 const postsDir = path.join(C.data, 'rawPosts')
