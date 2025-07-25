@@ -118,6 +118,7 @@ const existingPosts = new Set(
 const postList = JSON.parse(fs.readFileSync(path.join(C.data, 'postList', 'posts.json')).toString())
 
 const nameCounts = new Map<string, number>()
+nameCounts.set('index', 1)
 for(const post of postList) {
     const title = post.slug
     let count = nameCounts.get(title) ?? 0
