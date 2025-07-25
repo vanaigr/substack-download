@@ -21,7 +21,7 @@ for(let i = 0; i < posts.length; i++) {
     const filePath = path.join(base, post.id + '.html')
 
     const postLog = baseLog.withIds('post ' + post.id)
-    postLog.i('Processing', i, 'of', posts.length)
+    postLog.i('Processing', 1 + i, 'of', posts.length)
 
     if(fs.existsSync(filePath)) {
         postLog.i('Already exists. Skipping')
