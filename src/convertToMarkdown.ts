@@ -19,18 +19,23 @@ const baseLog = makeConsoleAndFileLogger(path.join(base, 'log.txt'))
 
 const rawPostsDir = path.join(C.data, 'rawPosts')
 const externalDir = path.join(C.data, 'externalFiles')
+const audioDir = path.join(C.data, 'audio')
 
 const assetsBase = path.join(base, 'assets')
 let assetsBaseRelative: string
 
+const audioRelativeBase = './audio'
+
 type AssetsIndex = {
     videoPaths: Record<string, string>
     imagePaths: Record<string, string>
+    audioPaths: Record<string, string>
 }
 
 let assetsIndex: AssetsIndex = {
     videoPaths: {},
     imagePaths: {},
+    audioPaths: {},
 }
 
 let copyFiles = false
@@ -40,7 +45,10 @@ if(!copyFiles) {
     baseLog.w('Using ../externalFiles/ as asset directory to not copy files')
 
     try {
-        assetsIndex = JSON.parse(fs.readFileSync(path.join(externalDir, 'index.json')).toString()) as AssetsIndex
+        assetsIndex = {
+            ...JSON.parse(fs.readFileSync(path.join(externalDir, 'index.json')).toString()) as Pick<AssetsIndex, 'videoPaths' | 'imagePaths'>,
+            audioPaths: {},
+        }
     }
     catch(err) {
         baseLog.e('While creating asset index', err)
@@ -109,6 +117,37 @@ else {
     }
 }
 
+try {
+    const dstAudio = path.join(base, audioRelativeBase)
+    // Operation not permitted
+    // fs.cpSync(audioDir, dstAudio, { recursive: true })
+    fs.mkdirSync(dstAudio)
+    let promises: Promise<unknown>[] = []
+    for(const it of fs.readdirSync(audioDir)) {
+        const log = baseLog.withIds('audio ' + it)
+        const p = (async() => {
+            try { await promises.at(-5) }
+            catch(_) {}
+
+            // Not permitted, again.
+            //await fsp.copyFile(path.join(audioDir, it), path.join(dstAudio, it))
+
+            const content = await fsp.readFile(path.join(audioDir, it))
+            await fsp.writeFile(path.join(dstAudio, it), content)
+        })().catch(err => {
+            log.e(err)
+            throw err
+        })
+        promises.push(p)
+    }
+    await Promise.allSettled(promises)
+    const audioConfig = fs.readFileSync(path.join(dstAudio, 'index.json')).toString()
+    assetsIndex.audioPaths = JSON.parse(audioConfig)
+}
+catch(err) {
+    baseLog.w('Could not copy audio. Not including it', err)
+}
+
 const existingPosts = new Set(
     fs.readdirSync(rawPostsDir)
         .filter(it => it.endsWith('.html'))
@@ -136,6 +175,8 @@ for(const post of postList) {
 
 for(const post of postList) {
     if(!existingPosts.has(post.id)) continue
+
+    const name = idToName[post.id]
 
     const log = baseLog.withIds('post ' + post.id)
     try {
@@ -172,11 +213,20 @@ for(const post of postList) {
             }
         }
 
+        let audio = ''
+        const audioFilename = assetsIndex.audioPaths[name]
+        if(audioFilename) {
+            audio = '![]('
+                + path.join(audioRelativeBase, encodeURIComponent(audioFilename))
+                + ')\n'
+        }
+
         let result = join([
             '# ' + post.title + '\n\n',
             post.subtitle + '\n\n',
             '\n\[Original](' + post.canonical_url + ')\n\n',
             video,
+            audio,
             process(log, jsdom.window.document, (url, log) => {
                 log = log.withIds('image url ' + url)
                 try {
@@ -193,7 +243,6 @@ for(const post of postList) {
             })
         ]).trim()
 
-        const name = idToName[post.id]
         fs.writeFileSync(path.join(base, name + '.md'), result)
     }
     catch(err) {

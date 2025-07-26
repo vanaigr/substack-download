@@ -7,7 +7,6 @@ import * as U from './util.ts'
 import { makeConsoleAndFileLogger } from './log.ts'
 
 const base = path.join(C.data, 'audio')
-fs.rmSync(base, { recursive: true, force: true })
 fs.mkdirSync(base, { recursive: true })
 const baseLog = makeConsoleAndFileLogger(path.join(base, 'log.txt'))
 
@@ -30,6 +29,30 @@ try {
 catch(err) {
     baseLog.e('While creating asset index')
     throw err
+}
+
+const audioIndexPath = path.join(base, 'index.json')
+
+let audioIndex: Record<string, string> = {}
+function writeIndex() {
+    fs.writeFileSync(audioIndexPath, JSON.stringify(audioIndex, undefined, 2))
+}
+
+let audioIndexStr: Buffer | undefined
+try {
+    audioIndexStr = fs.readFileSync(audioIndexPath)
+}
+catch(err) {
+    baseLog.w('index.json not found. Starting from scratch')
+}
+
+try {
+    if(audioIndexStr) {
+        audioIndex = JSON.parse(audioIndexStr.toString())
+    }
+}
+catch(err) {
+    baseLog.w('While reading audio index', err)
 }
 
 const postList = JSON.parse(fs.readFileSync(path.join(C.data, 'postList', 'posts.json')).toString())
@@ -72,8 +95,16 @@ for(const post of postList) {
         }
 
         if(videoUpload) {
-            const filename = assetsIndex.videoPaths[videoUpload.id]
-            if(!filename) {
+            const name = idToName[post.id]
+            const audioFilename = name + '.mp3'
+
+            if(audioIndex[name]) {
+                log.i('Exists. Skipping')
+                continue
+            }
+
+            const videoFilename = assetsIndex.videoPaths[videoUpload.id]
+            if(!videoFilename) {
                 log.w('Missing video', videoUpload.id)
             }
             else {
@@ -82,14 +113,17 @@ for(const post of postList) {
                 proc.spawnSync(
                     'ffmpeg',
                     [
-                        '-i', path.join(externalDir, encodeURIComponent(filename)),
+                        '-y',
+                        '-i', path.join(externalDir, encodeURIComponent(videoFilename)),
                         '-q:a', '0',
                         '-map', 'a',
-                        path.join(base, idToName[post.id] + '.ogg'),
+                        path.join(base, audioFilename),
                     ],
                     // TODO: also output into a log
                     { stdio: 'inherit' },
                 )
+                audioIndex[name] = audioFilename
+                writeIndex()
             }
         }
     }

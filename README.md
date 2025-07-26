@@ -117,4 +117,6 @@ If you want, you can also convert the main videos in each post to audio. For thi
 node src/convertToAudio.ts
 ```
 
-This outputs `.ogg` files to `audio/` in the data directory. The program uses post raw posts from step 4, and external files from step 5.
+This outputs files to `audio/` in the data directory. The program uses post raw posts from step 4, and external files from step 5.
+
+You can interrupt this command, it will skip converting the videos that were fully converted before.
