@@ -6,6 +6,8 @@ export type Ctx = {
     imageUrlToPath: (url: string, log: Log) => string | undefined
 }
 
+// TODO: escaping
+
 export function process(
     log: Log,
     document: Document,
@@ -31,7 +33,7 @@ function processNode(it: ChildNode, ctx: Ctx): string {
     const c: Ctx = { ...ctx, log }
 
     if(name === '#text') {
-        return (it.textContent ?? '').trim()
+        return normalize(it.textContent)
     }
     else if(name === 'IFRAME') {
         const src = it2.getAttribute('src')
@@ -61,7 +63,7 @@ function processNode(it: ChildNode, ctx: Ctx): string {
     else if(/^H\d$/.test(name)) {
         return '#'.repeat(parseInt(name.substring(1)))
             + ' '
-            + it.textContent
+            + normalize(it.textContent)
             + '\n'
     }
     else if(name === 'FIGCAPTION') {
@@ -166,7 +168,7 @@ function processNode(it: ChildNode, ctx: Ctx): string {
                     log.w('No href. Skipping')
                     return ''
                 }
-                return '[' + (it.textContent ?? '') + '](' + src + ')'
+                return '[' + normalize(it.textContent) + '](' + src + ')'
             }
         })()
 
@@ -217,7 +219,7 @@ function processNode(it: ChildNode, ctx: Ctx): string {
 
         if(result == null) {
             log.w('Unknown node', name)
-            result = (it.textContent ?? '').trim()
+            result = normalize(it.textContent)
         }
 
         return result
@@ -282,4 +284,10 @@ export function join(arr: string[]) {
         result += it
     }
     return result
+}
+
+function normalize(text: string | null | undefined) {
+    if(!text) return ''
+    text = text.trim()
+    return text.replaceAll('[', '\\[').replaceAll(']', '\\]')
 }
