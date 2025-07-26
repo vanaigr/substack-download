@@ -30,8 +30,8 @@ The project reads configuration file `/config.ts` in the root of the project. Ex
 
 ```typescript
 export default {
-    substackBaseUrl: "https://username.substack.com",
-    dataDirectory: './data',
+    substackBaseUrl: `https://username.substack.com`,
+    dataDirectory: `./data`,
 }
 ```
 
