@@ -108,3 +108,13 @@ There's a special `index.md` that contains links to all the articles.
 ## Examples
 
 Open `example-data` directory in the root of the project to see how the data looks. There's also a `config.ts` file that you can copy to the root of the project and try using.
+
+### 7. Convert to audio
+
+If you want, you can also convert the main videos in each post to audio. For this, execute:
+
+```shell
+node src/convertToAudio.ts
+```
+
+This outputs `.ogg` files to `audio/` in the data directory. The program uses post raw posts from step 4, and external files from step 5.
