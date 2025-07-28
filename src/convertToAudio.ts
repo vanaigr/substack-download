@@ -98,12 +98,27 @@ for(const post of postList) {
             const name = idToName[post.id]
             const audioFilename = name + '.mp3'
 
+            const videoFilename = assetsIndex.videoPaths[videoUpload.id]
+
             if(audioIndex[name]) {
-                log.i('Exists. Skipping')
-                continue
+                let fine = true
+                if(videoFilename) {
+                    if(!fs.existsSync(path.join(base, audioIndex[name]))) {
+                        log.w('File is in index but not found. Refetching')
+                        fine = false
+                    }
+                }
+
+                if(fine) {
+                    log.i('Exists. Skipping')
+                    continue
+                }
+                else {
+                    delete audioIndex[name]
+                    //writeIndex()
+                }
             }
 
-            const videoFilename = assetsIndex.videoPaths[videoUpload.id]
             if(!videoFilename) {
                 log.w('Missing video', videoUpload.id)
             }
