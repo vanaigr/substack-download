@@ -1,4 +1,4 @@
-A Node.js tool for downloading free and paid Substack posts, including images and videos, and converting them to Markdown.
+A Node.js tool for downloading free and paid Substack posts, including images, videos, podcasts, and converting them to Markdown.
 
 > [!IMPORTANT]
 > This tool may not work for you. I used it for downloading the one Substack I wanted to download, and I haven't tested it with other ones.

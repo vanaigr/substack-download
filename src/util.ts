@@ -5,26 +5,29 @@ import type { Log } from './log.ts'
 import * as C from './conf.ts'
 
 export function getPostData(values: any) {
-    let html: string | undefined
-    let videoUpload: any
+    let post: any
 
     try {
-        if(!html) {
-            html = values.feedData.initialPost.post.body_html
-            videoUpload = values.feedData.initialPost.post.videoUpload
-        }
+        if(!post) post = values.feedData.initialPost.post
     }
     catch(err) {}
 
     try {
-        if(!html) {
-            html = values.post.body_html
-            videoUpload = values.post.videoUpload
-        }
+        if(!post) post = values.post
     }
     catch(err) {}
 
-    return { html, videoUpload }
+    if(!post) {
+        return {
+
+        }
+    }
+
+    return {
+        html: post.body_html,
+        videoUpload: post.videoUpload,
+        podcastUpload: post.podcastUpload,
+    }
 }
 
 export function makeCookie(log: Log) {

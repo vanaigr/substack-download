@@ -18,6 +18,7 @@ const cookies = U.makeCookie(baseLog)
 
 type Index = {
     videoPaths: Record<string, string>
+    podcastPaths: Record<string, string>
     imagePaths: Record<string, string>
     filePathEnd: number
 }
@@ -44,12 +45,12 @@ let fileIndex = ((): Index | undefined => {
         baseLog.e('While reading current file index', err, 'Starting from scratch')
     }
 })()
-if(fileIndex == null) {
-    fileIndex = {
-        videoPaths: {},
-        imagePaths: {},
-        filePathEnd: 1,
-    }
+
+fileIndex = {
+    videoPaths: fileIndex?.videoPaths ?? {},
+    podcastPaths: fileIndex?.podcastPaths ?? {},
+    imagePaths: fileIndex?.imagePaths ?? {},
+    filePathEnd: fileIndex?.filePathEnd ?? 1,
 }
 
 function writeIndex() {
@@ -80,7 +81,7 @@ for(let i = 0; i < filenames.length; i++) {
     }
     //fs.writeFileSync(C.root + '/file.json', JSON.stringify(values, null, 2))
 
-    const { html, videoUpload } = U.getPostData(values)
+    const { html, videoUpload, podcastUpload } = U.getPostData(values)
 
     if(!html) {
         log.e('Could not find body_html of the post. Skipping')
@@ -121,7 +122,6 @@ for(let i = 0; i < filenames.length; i++) {
         }
     }
 
-    log.i('Fetching', imageSrcs.size, 'images')
     const promises: Promise<unknown>[] = []
     if(videoUpload) {
         const videoLog = log.withIds('video')
@@ -178,6 +178,69 @@ for(let i = 0; i < filenames.length; i++) {
             videoLog.i('Done')
         })().catch(err => {
             videoLog.e(err)
+            errors++
+            throw err
+        })
+
+        promises.push(p)
+    }
+
+    if(podcastUpload) {
+        const podcastLog = log.withIds('podcast')
+
+        const p = (async() => {
+            podcastLog.i('Found podcast upload')
+            if(fileIndex.podcastPaths[podcastUpload.id]) {
+                podcastLog.i('Already exists. Skipping')
+                return
+            }
+
+            try { await promises.at(-5) }
+            catch(err) {}
+
+            const url = new URL(
+                'api/v1/audio/upload/' + encodeURIComponent(podcastUpload.id) + '/src',
+                C.config.substackBaseUrl,
+            )
+
+            log.i('Fetching from', url.toString())
+            const resp = await fetch(url, {
+                headers: {
+                    ...(cookies ? { cookie: cookies } : {}),
+                },
+            })
+            if(!resp.ok) {
+                const body = await resp.text().then(
+                    it => 'Body:' + it,
+                    it => 'Body error:' + it
+                )
+                throw new Error(
+                    'Response status: ' + resp.status + '. Body: ' + body
+                )
+            }
+
+            const filename = '' + fileIndex.filePathEnd + '.mp3'
+            fileIndex.filePathEnd++
+            writeIndex()
+
+            const fileStream = fs.createWriteStream(
+                path.join(base, filename),
+                { flags: 'wx' },
+            )
+            await new Promise((s, j) => {
+                resp.body!.pipe(fileStream)
+                fileStream.on('finish', () => s(undefined))
+                resp.body!.on('error', j)
+            })
+
+            fileIndex.podcastPaths[podcastUpload.id] = filename
+            writeIndex()
+            downloaded++
+
+            podcastLog.i('Done')
+        })().catch(err => {
+            podcastLog.e(err)
+            podcastLog.w('NOTE: this may be normal if it is a video podcast (why is it considered a podcase then? 🤣)')
             errors++
             throw err
         })
