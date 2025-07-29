@@ -26,7 +26,7 @@ pnpm install
 
 ### 1. Configure the project
 
-The project reads configuration file `/config.ts` in the root of the project. Example config file:
+The project reads configuration file `config.ts` in the root of the project. Example config file:
 
 ```typescript
 export default {
@@ -79,7 +79,7 @@ You can interrupt this command. The program will not re-download the posts. If y
 
 ### 5. Download external files
 
-To download images and videos (except external ones like YouTube), execute:
+To download images, podcasts and videos (except external ones like YouTube), execute:
 
 ```shell
 node src/downloadExternal.ts
@@ -105,10 +105,6 @@ There's a special `index.md` that contains links to all the articles.
 > By default, assets are not copied to the `md` directory. The posts inside reference assets directly in `externalFiles`.
 > If you want to change that and copy assets to `md/assets`, open `src/convertToMarkdown.ts` and change `let copyFiles = false` to `let copyFiles = true`.
 
-## Examples
-
-Open `example-data` directory in the root of the project to see how the data looks. There's also a `config.ts` file that you can copy to the root of the project and try using.
-
 ### 7. Convert to audio
 
 If you want, you can also convert the main videos in each post to audio. For this, execute:
@@ -120,3 +116,7 @@ node src/convertToAudio.ts
 This outputs files to `audio/` in the data directory. The program uses post raw posts from step 4, and external files from step 5.
 
 You can interrupt this command, it will skip converting the videos that were fully converted before.
+
+## Examples
+
+Open `example-data` directory in the root of the project to see how the data looks. There's also a `config.ts` file that you can copy to the root of the project and try using.
