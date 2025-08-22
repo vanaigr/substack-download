@@ -240,7 +240,10 @@ for(let i = 0; i < filenames.length; i++) {
             podcastLog.i('Done')
         })().catch(err => {
             podcastLog.e(err)
-            podcastLog.w('NOTE: this may be normal if it is a video podcast (why is it considered a podcase then? 🤣)')
+            // TODO: if there's a video and a podcast URL, should it
+            // just skip the podcast? This only triggers for some videos,
+            // and they don't have to be podcasts.
+            podcastLog.w('NOTE: 🙃 this may be normal if it is a video and not a podcast')
             errors++
             throw err
         })

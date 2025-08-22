@@ -1,7 +1,9 @@
 A Node.js tool for downloading free and paid Substack posts, including images, videos, podcasts, and converting them to Markdown.
 
+This tool supports incrementally downloading the content (e.g. if it was added after you've downloaded everything).
+
 > [!IMPORTANT]
-> This tool may not work for you. I used it for downloading the one Substack I wanted to download, and I haven't tested it with other ones.
+> I used it for downloading the one Substack I wanted to download, and I haven't tested it with other ones.
 
 See similar tools:
 * https://github.com/alexferrari88/sbstck-dl
